@@ -50,7 +50,26 @@ MAILBOX_USER=info@flx-software.de
 
 Ohne Konfiguration werden Demo-E-Mails angezeigt.
 
-### 4. Entwicklungsserver starten
+### 4. Website-Tickets (API)
+
+Die Website sendet Tickets an `POST /api/tickets/public` mit Header `X-API-Key`.
+
+**Dashboard (Vercel):**
+```env
+TICKET_API_SECRET=flx-ticket-sync-8k2m9p4x7n1q
+```
+
+**Website (Vercel):**
+```env
+DASHBOARD_API_URL=https://flx-dashboard.vercel.app
+DASHBOARD_API_KEY=flx-ticket-sync-8k2m9p4x7n1q
+```
+
+`DASHBOARD_API_KEY` und `TICKET_API_SECRET` müssen identisch sein.
+
+**Persistenz auf Vercel:** Ohne Supabase unter **Vercel → Storage → Blob** einen Store erstellen und mit dem Dashboard-Projekt verbinden (`BLOB_READ_WRITE_TOKEN` wird automatisch gesetzt).
+
+### 5. Entwicklungsserver starten
 
 ```bash
 npm run dev

@@ -19,8 +19,21 @@ function getGraphConfig() {
 }
 
 export function isGraphConfigured(): boolean {
-  const { tenantId, clientId, clientSecret } = getGraphConfig();
-  return Boolean(tenantId && clientId && clientSecret);
+  return getMissingGraphEnvVars().length === 0;
+}
+
+export function getMissingGraphEnvVars(): string[] {
+  const missing: string[] = [];
+  if (!process.env.MICROSOFT_TENANT_ID?.trim()) {
+    missing.push("MICROSOFT_TENANT_ID");
+  }
+  if (!process.env.MICROSOFT_CLIENT_ID?.trim()) {
+    missing.push("MICROSOFT_CLIENT_ID");
+  }
+  if (!process.env.MICROSOFT_CLIENT_SECRET?.trim()) {
+    missing.push("MICROSOFT_CLIENT_SECRET");
+  }
+  return missing;
 }
 
 export function getMailboxUser(): string {
@@ -60,7 +73,7 @@ async function fetchAccessToken(): Promise<string> {
 
   if (!response.ok || !data.access_token) {
     const detail = data.error_description || data.error || response.statusText;
-    throw new Error(`OAuth2-Token konnte nicht abgerufen werden: ${detail}`);
+    throw new Error(formatOAuthTokenError(detail, tenantId, clientId));
   }
 
   tokenCache = {
@@ -129,4 +142,18 @@ export interface GraphMessage {
 
 export function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function formatOAuthTokenError(
+  detail: string,
+  tenantId: string,
+  clientId: string
+): string {
+  const swappedHint =
+    detail.includes("AADSTS700016") &&
+    (detail.includes(tenantId) || tenantId === clientId)
+      ? " Hinweis: MICROSOFT_TENANT_ID (Verzeichnis-ID) und MICROSOFT_CLIENT_ID (Anwendungs-ID) sind vermutlich vertauscht."
+      : "";
+
+  return `OAuth2-Token konnte nicht abgerufen werden: ${detail}${swappedHint}`;
 }

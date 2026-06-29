@@ -5,6 +5,11 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { getLocalProfiles } from "@/lib/auth/users";
 import { getDataDir } from "@/lib/data-path";
+import {
+  isBlobStorageConfigured,
+  readPersistedJson,
+  writePersistedJson,
+} from "@/lib/db/blob-store";
 import type {
   CalendarEvent,
   Profile,
@@ -43,6 +48,19 @@ async function ensureDb(): Promise<LocalDatabase> {
 
   const dbPath = getDbPath();
 
+  if (isBlobStorageConfigured()) {
+    const blobRaw = await readPersistedJson();
+    if (blobRaw) {
+      try {
+        const parsed = JSON.parse(blobRaw) as LocalDatabase;
+        memoryDb = parsed;
+        return parsed;
+      } catch {
+        // fall through to recreate
+      }
+    }
+  }
+
   try {
     const raw = await readFile(dbPath, "utf-8");
     const parsed = JSON.parse(raw) as LocalDatabase;
@@ -54,9 +72,11 @@ async function ensureDb(): Promise<LocalDatabase> {
       await mkdir(path.dirname(dbPath), { recursive: true });
       await writeFile(dbPath, JSON.stringify(initial, null, 2), "utf-8");
       memoryDb = initial;
+      await saveDb(initial);
       return initial;
     } catch {
       memoryDb = initial;
+      await saveDb(initial);
       return initial;
     }
   }
@@ -64,11 +84,17 @@ async function ensureDb(): Promise<LocalDatabase> {
 
 async function saveDb(db: LocalDatabase) {
   memoryDb = db;
+  const serialized = JSON.stringify(db, null, 2);
+
+  if (isBlobStorageConfigured()) {
+    await writePersistedJson(serialized);
+  }
+
   const dbPath = getDbPath();
 
   try {
     await mkdir(path.dirname(dbPath), { recursive: true });
-    await writeFile(dbPath, JSON.stringify(db, null, 2), "utf-8");
+    await writeFile(dbPath, serialized, "utf-8");
   } catch {
     // Ephemeral in-memory fallback on read-only filesystems (e.g. Vercel)
   }

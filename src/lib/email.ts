@@ -7,6 +7,7 @@ import {
 import {
   GraphApiError,
   getMailboxUser,
+  getMissingGraphEnvVars,
   graphRequest,
   isGraphConfigured,
   stripHtml,
@@ -75,11 +76,12 @@ export async function fetchEmails(): Promise<{
   const mailbox = getMailboxUser();
 
   if (!isGraphConfigured()) {
+    const missing = getMissingGraphEnvVars().join(", ");
     return {
       emails: await applyEmailState(DEMO_EMAILS),
       demo: true,
       mailbox,
-      error: "Microsoft Graph nicht konfiguriert",
+      error: `Microsoft Graph nicht konfiguriert. Fehlende Umgebungsvariablen: ${missing}. Auf Vercel unter Project → Settings → Environment Variables eintragen und neu deployen.`,
     };
   }
 
