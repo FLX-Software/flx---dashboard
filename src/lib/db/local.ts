@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { getLocalProfiles } from "@/lib/auth/users";
+import { getDataDir } from "@/lib/data-path";
 import type {
   CalendarEvent,
   Profile,
@@ -21,29 +22,56 @@ interface LocalDatabase {
   calendar_events: CalendarEvent[];
 }
 
-const DB_PATH = path.join(process.cwd(), "data", "dashboard.json");
+function createInitialDb(): LocalDatabase {
+  return {
+    ticketCounter: 0,
+    profiles: getLocalProfiles(),
+    support_tickets: [],
+    tasks: [],
+    calendar_events: [],
+  };
+}
+
+function getDbPath() {
+  return path.join(getDataDir(), "dashboard.json");
+}
+
+let memoryDb: LocalDatabase | null = null;
 
 async function ensureDb(): Promise<LocalDatabase> {
+  if (memoryDb) return memoryDb;
+
+  const dbPath = getDbPath();
+
   try {
-    const raw = await readFile(DB_PATH, "utf-8");
-    return JSON.parse(raw) as LocalDatabase;
+    const raw = await readFile(dbPath, "utf-8");
+    const parsed = JSON.parse(raw) as LocalDatabase;
+    memoryDb = parsed;
+    return parsed;
   } catch {
-    const initial: LocalDatabase = {
-      ticketCounter: 0,
-      profiles: getLocalProfiles(),
-      support_tickets: [],
-      tasks: [],
-      calendar_events: [],
-    };
-    await mkdir(path.dirname(DB_PATH), { recursive: true });
-    await writeFile(DB_PATH, JSON.stringify(initial, null, 2), "utf-8");
-    return initial;
+    const initial = createInitialDb();
+    try {
+      await mkdir(path.dirname(dbPath), { recursive: true });
+      await writeFile(dbPath, JSON.stringify(initial, null, 2), "utf-8");
+      memoryDb = initial;
+      return initial;
+    } catch {
+      memoryDb = initial;
+      return initial;
+    }
   }
 }
 
 async function saveDb(db: LocalDatabase) {
-  await mkdir(path.dirname(DB_PATH), { recursive: true });
-  await writeFile(DB_PATH, JSON.stringify(db, null, 2), "utf-8");
+  memoryDb = db;
+  const dbPath = getDbPath();
+
+  try {
+    await mkdir(path.dirname(dbPath), { recursive: true });
+    await writeFile(dbPath, JSON.stringify(db, null, 2), "utf-8");
+  } catch {
+    // Ephemeral in-memory fallback on read-only filesystems (e.g. Vercel)
+  }
 }
 
 export async function getProfiles(): Promise<Profile[]> {

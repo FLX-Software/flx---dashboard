@@ -2,26 +2,47 @@ import "server-only";
 
 import { readFile, writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { getDataDir } from "@/lib/data-path";
 
 interface EmailState {
   deleted: string[];
   read: Record<string, boolean>;
 }
 
-const STATE_PATH = path.join(process.cwd(), "data", "email-state.json");
+function getStatePath() {
+  return path.join(getDataDir(), "email-state.json");
+}
+
+const emptyState = (): EmailState => ({ deleted: [], read: {} });
+
+let memoryState: EmailState | null = null;
 
 async function loadState(): Promise<EmailState> {
+  if (memoryState) return memoryState;
+
+  const statePath = getStatePath();
+
   try {
-    const raw = await readFile(STATE_PATH, "utf-8");
-    return JSON.parse(raw) as EmailState;
+    const raw = await readFile(statePath, "utf-8");
+    const parsed = JSON.parse(raw) as EmailState;
+    memoryState = parsed;
+    return parsed;
   } catch {
-    return { deleted: [], read: {} };
+    memoryState = emptyState();
+    return memoryState;
   }
 }
 
 async function saveState(state: EmailState) {
-  await mkdir(path.dirname(STATE_PATH), { recursive: true });
-  await writeFile(STATE_PATH, JSON.stringify(state, null, 2), "utf-8");
+  memoryState = state;
+  const statePath = getStatePath();
+
+  try {
+    await mkdir(path.dirname(statePath), { recursive: true });
+    await writeFile(statePath, JSON.stringify(state, null, 2), "utf-8");
+  } catch {
+    // Ephemeral in-memory fallback on read-only filesystems (e.g. Vercel)
+  }
 }
 
 export async function applyEmailState<T extends { id: string; read: boolean }>(
