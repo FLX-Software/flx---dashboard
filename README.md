@@ -24,7 +24,7 @@ npm install
 1. Erstellen Sie ein Projekt auf [supabase.com](https://supabase.com)
 2. Führen Sie die Migration aus: `supabase/migrations/001_initial_schema.sql` im SQL Editor
 3. Erstellen Sie Benutzer unter **Authentication → Users** (E-Mail + Passwort)
-4. Kopieren Sie URL und Anon Key in `.env.local`:
+4. Kopieren Sie URL, Anon Key und **service_role** Key in `.env.local` (service_role nur serverseitig, für Website-Tickets):
 
 ```bash
 cp .env.local.example .env.local
@@ -57,6 +57,7 @@ Die Website sendet Tickets an `POST /api/tickets/public` mit Header `X-API-Key`.
 **Dashboard (Vercel):**
 ```env
 TICKET_API_SECRET=flx-ticket-sync-8k2m9p4x7n1q
+SUPABASE_SERVICE_ROLE_KEY=...  # Supabase → Project Settings → API → service_role
 ```
 
 **Website (Vercel):**

@@ -2,6 +2,7 @@ import "server-only";
 
 import { isSupabaseConfigured } from "@/lib/config";
 import { getCurrentUser } from "@/lib/auth/get-user";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import * as local from "@/lib/db/local";
 import type { TaskPriority, TaskStatus, TicketPriority, TicketStatus, WebsiteTicketPayload } from "@/lib/types";
@@ -135,7 +136,8 @@ export async function insertWebsiteTicket(payload: WebsiteTicketPayload) {
   const ticketData = buildWebsiteTicketData(payload);
 
   if (isSupabaseConfigured()) {
-    const supabase = await createClient();
+    // Service Role: Website-API ist unauthentifiziert, RLS erlaubt nur authenticated.
+    const supabase = createAdminClient();
     const { data: existing } = await supabase
       .from("support_tickets")
       .select("id")
